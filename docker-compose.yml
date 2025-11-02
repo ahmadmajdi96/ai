@@ -1,0 +1,261 @@
+version: "3.9"
+
+networks:
+  aiops-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  minio_data:
+  ollama_cache:
+
+services:
+  # ==========================================================
+  # 🚀 LLM Runtime (vLLM - Qwen2.5 14B Instruct)
+  # ==========================================================
+  llm-runtime:
+    image: vllm/vllm-openai:latest
+    container_name: llm-runtime
+    restart: unless-stopped
+    environment:
+      VLLM_MODEL: "Qwen2.5-14B-Instruct"
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    command: >
+      python3 -m vllm.entrypoints.openai.api_server
+      --model ${VLLM_MODEL}
+      --tensor-parallel-size 1
+      --max-model-len 32768
+      --port 8000
+    ports:
+      - "8001:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+    runtime: nvidia
+    networks:
+      - aiops-net
+
+  # ==========================================================
+  # 🧠 Rules Service
+  # ==========================================================
+  rules-service:
+    build: ./rules-service
+    container_name: rules-service
+    restart: unless-stopped
+    networks:
+      - aiops-net
+    environment:
+      DB_URL: postgres://postgres:postgres@postgres:5432/aiops
+
+  # ==========================================================
+  # 📥 Data Ingestor
+  # ==========================================================
+  data-ingestor:
+    build: ./data-ingestor
+    container_name: data-ingestor
+    restart: unless-stopped
+    networks:
+      - aiops-net
+    environment:
+      STORAGE_URL: http://minio:9000
+      DB_URL: postgres://postgres:postgres@postgres:5432/aiops
+
+  # ==========================================================
+  # 📊 Analytics Engine
+  # ==========================================================
+  analytics-engine:
+    build: ./analytics-engine
+    container_name: analytics-engine
+    restart: unless-stopped
+    networks:
+      - aiops-net
+    environment:
+      DB_URL: postgres://postgres:postgres@postgres:5432/aiops
+
+  # ==========================================================
+  # ⚙️ Optimizer Service
+  # ==========================================================
+  optimizer-service:
+    build: ./optimizer-service
+    container_name: optimizer-service
+    restart: unless-stopped
+    networks:
+      - aiops-net
+    environment:
+      DB_URL: postgres://postgres:postgres@postgres:5432/aiops
+
+  # ==========================================================
+  # 🔎 RAG Service
+  # ==========================================================
+  rag-service:
+    build: ./rag-service
+    container_name: rag-service
+    restart: unless-stopped
+    networks:
+      - aiops-net
+    environment:
+      LLM_URL: http://llm-runtime:8000/v1/chat/completions
+      VECTOR_DB_URL: postgres://postgres:postgres@postgres:5432/aiops
+
+  # ==========================================================
+  # 🧩 Advisor Service
+  # ==========================================================
+  advisor-service:
+    build: ./advisor-service
+    container_name: advisor-service
+    restart: unless-stopped
+    networks:
+      - aiops-net
+    environment:
+      LLM_URL: http://llm-runtime:8000/v1/chat/completions
+      RULES_URL: http://rules-service:8000/rules
+      ANALYTICS_URL: http://analytics-engine:8000/snapshot
+      OPTIMIZER_URL: http://optimizer-service:8000/outputs
+
+  # ==========================================================
+  # 🤖 Decision Orchestrator
+  # ==========================================================
+  decision-orchestrator:
+    build: ./decision-orchestrator
+    container_name: decision-orchestrator
+    restart: unless-stopped
+    networks:
+      - aiops-net
+    environment:
+      ADVISOR_URL: http://advisor-service:8000
+      RULES_URL: http://rules-service:8000
+      ANALYTICS_URL: http://analytics-engine:8000
+      OPTIMIZER_URL: http://optimizer-service:8000
+      LLM_URL: http://llm-runtime:8000/v1/chat/completions
+
+  # ==========================================================
+  # 💸 Cost Agent
+  # ==========================================================
+  cost-agent:
+    build: ./cost-agent
+    container_name: cost-agent
+    restart: unless-stopped
+    networks:
+      - aiops-net
+    environment:
+      LLM_URL: http://llm-runtime:8000/v1/chat/completions
+      ANALYTICS_URL: http://analytics-engine:8000/snapshot
+      RULES_URL: http://rules-service:8000/rules
+      OPTIMIZER_URL: http://optimizer-service:8000/cost
+
+  # ==========================================================
+  # ⚙️ Workflow Agent
+  # ==========================================================
+  workflow-agent:
+    build: ./workflow-agent
+    container_name: workflow-agent
+    restart: unless-stopped
+    networks:
+      - aiops-net
+    environment:
+      LLM_URL: http://llm-runtime:8000/v1/chat/completions
+      ANALYTICS_URL: http://analytics-engine:8000/snapshot
+      RULES_URL: http://rules-service:8000/rules
+      OPTIMIZER_URL: http://optimizer-service:8000/workflow
+
+  # ==========================================================
+  # 🔧 Bottleneck Agent
+  # ==========================================================
+  bottleneck-agent:
+    build: ./bottleneck-agent
+    container_name: bottleneck-agent
+    restart: unless-stopped
+    networks:
+      - aiops-net
+    environment:
+      LLM_URL: http://llm-runtime:8000/v1/chat/completions
+      ANALYTICS_URL: http://analytics-engine:8000/snapshot
+      RULES_URL: http://rules-service:8000/rules
+      OPTIMIZER_URL: http://optimizer-service:8000/bottleneck
+
+  # ==========================================================
+  # ⚠️ Risk Agent
+  # ==========================================================
+  risk-agent:
+    build: ./risk-agent
+    container_name: risk-agent
+    restart: unless-stopped
+    networks:
+      - aiops-net
+    environment:
+      LLM_URL: http://llm-runtime:8000/v1/chat/completions
+      ANALYTICS_URL: http://analytics-engine:8000/snapshot
+      RULES_URL: http://rules-service:8000/rules
+      OPTIMIZER_URL: http://optimizer-service:8000/risk
+
+  # ==========================================================
+  # 🌐 Gateway API
+  # ==========================================================
+  gateway-api:
+    build: ./gateway-api
+    container_name: gateway-api
+    restart: unless-stopped
+    ports:
+      - "8080:8000"
+    networks:
+      - aiops-net
+    environment:
+      ORCHESTRATOR_URL: http://decision-orchestrator:8000
+      ADVISOR_URL: http://advisor-service:8000
+
+  # ==========================================================
+  # 🗄️ PostgreSQL
+  # ==========================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: aiops
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - aiops-net
+    ports:
+      - "5432:5432"
+
+  # ==========================================================
+  # ☁️ MinIO Object Storage
+  # ==========================================================
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: admin123
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - aiops-net
+
+  # ==========================================================
+  # 🌍 Reverse Proxy (optional)
+  # ==========================================================
+  reverse-proxy:
+    image: nginx:latest
+    container_name: reverse-proxy
+    restart: unless-stopped
+    depends_on:
+      - gateway-api
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    networks:
+      - aiops-net
