@@ -58,7 +58,9 @@ services:
             - capabilities: [gpu]
 
   gateway-api:
-    build: ./gateway-api
+    build:
+      context: .
+      dockerfile: gateway-api/Dockerfile
     container_name: gateway-api
     restart: unless-stopped
     environment:
@@ -74,7 +76,9 @@ services:
       - decision-orchestrator
 
   rules-service:
-    build: ./rules-service
+    build:
+      context: .
+      dockerfile: rules-service/Dockerfile
     container_name: rules-service
     restart: unless-stopped
     environment:
@@ -83,7 +87,9 @@ services:
       - postgres
 
   data-ingestor:
-    build: ./data-ingestor
+    build:
+      context: .
+      dockerfile: data-ingestor/Dockerfile
     container_name: data-ingestor
     restart: unless-stopped
     environment:
@@ -96,7 +102,9 @@ services:
       - minio
 
   analytics-engine:
-    build: ./analytics-engine
+    build:
+      context: .
+      dockerfile: analytics-engine/Dockerfile
     container_name: analytics-engine
     restart: unless-stopped
     environment:
@@ -105,7 +113,9 @@ services:
       - postgres
 
   optimizer-service:
-    build: ./optimizer-service
+    build:
+      context: .
+      dockerfile: optimizer-service/Dockerfile
     container_name: optimizer-service
     restart: unless-stopped
     environment:
@@ -116,7 +126,9 @@ services:
       - rules-service
 
   rag-service:
-    build: ./rag-service
+    build:
+      context: .
+      dockerfile: rag-service/Dockerfile
     container_name: rag-service
     restart: unless-stopped
     environment:
@@ -125,7 +137,9 @@ services:
       - postgres
 
   cost-agent:
-    build: ./agents/cost-agent
+    build:
+      context: .
+      dockerfile: agents/cost-agent/Dockerfile
     container_name: cost-agent
     restart: unless-stopped
     environment:
@@ -135,7 +149,9 @@ services:
       OPT_URL: http://optimizer-service:8000/cost_view
 
   workflow-agent:
-    build: ./agents/workflow-agent
+    build:
+      context: .
+      dockerfile: agents/workflow-agent/Dockerfile
     container_name: workflow-agent
     restart: unless-stopped
     environment:
@@ -145,7 +161,9 @@ services:
       OPT_URL: http://optimizer-service:8000/workflow_view
 
   bottleneck-agent:
-    build: ./agents/bottleneck-agent
+    build:
+      context: .
+      dockerfile: agents/bottleneck-agent/Dockerfile
     container_name: bottleneck-agent
     restart: unless-stopped
     environment:
@@ -155,7 +173,9 @@ services:
       OPT_URL: http://optimizer-service:8000/bottleneck_view
 
   risk-agent:
-    build: ./agents/risk-agent
+    build:
+      context: .
+      dockerfile: agents/risk-agent/Dockerfile
     container_name: risk-agent
     restart: unless-stopped
     environment:
@@ -165,7 +185,9 @@ services:
       OPT_URL: http://optimizer-service:8000/risk_view
 
   decision-orchestrator:
-    build: ./decision-orchestrator
+    build:
+      context: .
+      dockerfile: decision-orchestrator/Dockerfile
     container_name: decision-orchestrator
     restart: unless-stopped
     environment:
@@ -180,7 +202,9 @@ services:
       - risk-agent
 
   advisor-service:
-    build: ./advisor-service
+    build:
+      context: .
+      dockerfile: advisor-service/Dockerfile
     container_name: advisor-service
     restart: unless-stopped
     environment:
