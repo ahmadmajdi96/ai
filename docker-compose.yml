@@ -43,7 +43,7 @@ services:
     container_name: llm-runtime
     restart: unless-stopped
     environment:
-      VLLM_MODEL: "qwen2.5-14B-Instruct"
+      VLLM_MODEL: "qwen2.5-14b-instruct"
       VLLM_GPU_MEM_UTILIZATION: "0.9"
     command: >
       --model ${VLLM_MODEL:-Qwen2.5-14B-Instruct}
