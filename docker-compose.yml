@@ -46,8 +46,7 @@ services:
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
     command: >
-      python3 -m vllm.entrypoints.openai.api_server
-      Qwen/Qwen2.5-14B-Instruct
+      --model Qwen/Qwen2.5-14B-Instruct
       --tensor-parallel-size 1
       --max-model-len 32768
       --port 8000
@@ -61,6 +60,7 @@ services:
             - capabilities: [gpu]
     volumes:
       - ./models:/root/.cache/huggingface
+
 
 
   gateway-api:
